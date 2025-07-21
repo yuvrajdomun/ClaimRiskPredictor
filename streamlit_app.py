@@ -595,35 +595,45 @@ def show_whatif_page():
             for i, result in enumerate(results_data):
                 scenario = result['scenario']
                 
+                # Use Streamlit native components instead of HTML
                 with st.container():
-                    st.markdown(f"""
-                    <div style="
-                        border-left: 4px solid {'#ff4b4b' if result['change'] > 0 else '#00cc44' if result['change'] < 0 else '#ffa500'};
-                        padding: 15px;
-                        margin: 10px 0;
-                        background-color: {'#ffe6e6' if result['change'] > 0 else '#e6ffe6' if result['change'] < 0 else '#fff3e6'};
-                        border-radius: 5px;
-                    ">
-                        <h4 style="margin: 0 0 10px 0; color: #333;">🎯 {scenario['name']}</h4>
-                        <p style="margin: 5px 0; color: #666;"><strong>Question:</strong> {scenario['question']}</p>
-                        <p style="margin: 5px 0; color: #666;"><strong>Theory:</strong> {scenario['explanation']}</p>
-                        
-                        <div style="display: flex; justify-content: space-between; margin: 10px 0;">
-                            <span><strong>Original Value:</strong> {scenario['original_value']}</span>
-                            <span><strong>New Value:</strong> {scenario['new_value']}</span>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; margin: 10px 0;">
-                            <span><strong>Base Risk:</strong> {base_prob:.1%}</span>
-                            <span><strong>New Risk:</strong> {result['new_prob']:.1%}</span>
-                            <span><strong>Change:</strong> <span style="color: {'red' if result['change'] > 0 else 'green' if result['change'] < 0 else 'orange'}; font-weight: bold;">{result['change']:+.1%}</span></span>
-                        </div>
-                        
-                        <p style="margin: 5px 0; font-weight: bold; color: {'#d63031' if result['change'] > 0 else '#00b894' if result['change'] < 0 else '#e67e22'};">
-                            <strong>Impact:</strong> {result['impact_direction']}
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # Determine card styling based on change
+                    if result['change'] > 0:
+                        card_color = "🔴"
+                        change_emoji = "📈"
+                    elif result['change'] < 0:
+                        card_color = "🟢"
+                        change_emoji = "📉"
+                    else:
+                        card_color = "🟡"
+                        change_emoji = "➡️"
+                    
+                    st.markdown(f"#### {card_color} **{scenario['name']}**")
+                    
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.write(f"**❓ Question:** {scenario['question']}")
+                        st.write(f"**💡 Theory:** {scenario['explanation']}")
+                    
+                    with col2:
+                        st.metric("Original → New", 
+                                f"{scenario['original_value']} → {scenario['new_value']}")
+                    
+                    # Risk comparison
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Base Risk", f"{base_prob:.1%}")
+                    with col2:
+                        st.metric("New Risk", f"{result['new_prob']:.1%}")
+                    with col3:
+                        delta_color = "normal" if abs(result['change']) < 0.01 else None
+                        st.metric("Change", f"{result['change']:+.1%}", 
+                                delta=f"{result['change']:+.1%}", delta_color=delta_color)
+                    
+                    # Impact description
+                    st.write(f"**{change_emoji} Impact:** {result['impact_direction']}")
+                    
+                    st.markdown("---")
             
             # Visualization
             st.markdown("### 📈 Visual Comparison")

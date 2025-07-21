@@ -170,6 +170,13 @@ class FraudPredictor:
         # Create DataFrame from input
         df = pd.DataFrame([kwargs])
         
+        # Ensure correct data types for numeric columns
+        numeric_columns = ['age', 'vehicle_age', 'annual_mileage', 'driving_violations', 
+                          'claim_amount', 'previous_claims', 'credit_score']
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col])
+        
         # Add is_fraud column as placeholder (will be ignored)
         df['is_fraud'] = 0
         

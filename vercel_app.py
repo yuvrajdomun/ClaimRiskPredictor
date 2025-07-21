@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 from typing import Dict, Any
@@ -26,6 +27,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Insurance Claim Risk Predictor",
     description="AI-powered insurance claim fraud prediction demo"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Global variables for model state
@@ -58,6 +68,8 @@ async def startup_event():
         
     except Exception as e:
         logger.error(f"Model initialization failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         model_loaded = False
 
 @app.get("/", response_class=HTMLResponse)
@@ -126,10 +138,10 @@ async def home():
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
                         <select name="vehicle_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="saloon">Saloon</option>
+                            <option value="sedan">Sedan</option>
                             <option value="suv">SUV</option>
-                            <option value="van">Van</option>
-                            <option value="sports">Sports Car</option>
+                            <option value="truck">Truck</option>
+                            <option value="sports">Sports</option>
                             <option value="luxury">Luxury</option>
                         </select>
                     </div>
@@ -167,11 +179,9 @@ async def home():
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Region</label>
                         <select name="region" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="london">London</option>
-                            <option value="midlands">Midlands</option>
-                            <option value="north">North</option>
-                            <option value="south">South</option>
-                            <option value="scotland">Scotland</option>
+                            <option value="urban">Urban</option>
+                            <option value="suburban">Suburban</option>
+                            <option value="rural">Rural</option>
                         </select>
                     </div>
                     
@@ -232,23 +242,39 @@ async def home():
                 const data = Object.fromEntries(formData.entries());
                 
                 // Convert numeric fields
-                ['age', 'vehicle_age', 'annual_mileage', 'driving_violations', 'claim_amount', 'previous_claims', 'credit_score'].forEach(field => {
+                ['age', 'vehicle_age', 'annual_mileage', 'driving_violations', 'previous_claims', 'credit_score'].forEach(field => {
                     data[field] = parseInt(data[field]);
                 });
+                // Convert claim_amount to float
+                data['claim_amount'] = parseFloat(data['claim_amount']);
                 
                 try {
+                    console.log('Sending prediction request with data:', data);
                     const response = await fetch('/predict', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(data)
                     });
                     
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+                    
                     const result = await response.json();
+                    console.log('Prediction result:', result);
                     
                     const riskLevel = result.fraud_probability < 0.3 ? 'Low' : 
                                     result.fraud_probability < 0.7 ? 'Medium' : 'High';
                     const riskColor = result.fraud_probability < 0.3 ? 'green' : 
-                                     result.fraud_probability < 0.7 ? 'yellow' : 'red';
+                                     result.fraud_probability < 0.7 ? 'orange' : 'red';
+                    const riskBgClass = result.fraud_probability < 0.3 ? 'bg-green-50' : 
+                                       result.fraud_probability < 0.7 ? 'bg-orange-50' : 'bg-red-50';
+                    const riskTextClass = result.fraud_probability < 0.3 ? 'text-green-600' : 
+                                          result.fraud_probability < 0.7 ? 'text-orange-600' : 'text-red-600';
+                    const riskProgressClass = result.fraud_probability < 0.3 ? 'bg-green-600' : 
+                                             result.fraud_probability < 0.7 ? 'bg-orange-600' : 'bg-red-600';
                     
                     // Generate explanations based on risk level
                     let explanation = '';
@@ -272,8 +298,8 @@ async def home():
                                 <div class="text-4xl font-bold text-blue-600">${(result.fraud_probability * 100).toFixed(1)}%</div>
                                 <div class="text-gray-600 text-sm">Fraud Probability</div>
                             </div>
-                            <div class="text-center p-4 bg-${riskColor}-50 rounded-lg">
-                                <div class="text-4xl font-bold text-${riskColor}-600">${riskLevel} Risk</div>
+                            <div class="text-center p-4 ${riskBgClass} rounded-lg">
+                                <div class="text-4xl font-bold ${riskTextClass}">${riskLevel} Risk</div>
                                 <div class="text-gray-600 text-sm">Assessment Level</div>
                             </div>
                             <div class="text-center p-4 bg-gray-50 rounded-lg">
@@ -285,7 +311,7 @@ async def home():
                         <div class="bg-gray-100 rounded-lg p-4 mb-4">
                             <h3 class="font-semibold mb-3 text-lg">🎯 Risk Assessment</h3>
                             <div class="w-full bg-gray-200 rounded-full h-6 mb-2">
-                                <div class="bg-${riskColor}-600 h-6 rounded-full transition-all duration-1000 ease-out" style="width: ${result.fraud_probability * 100}%"></div>
+                                <div class="${riskProgressClass} h-6 rounded-full transition-all duration-1000 ease-out" style="width: ${result.fraud_probability * 100}%"></div>
                             </div>
                             <div class="flex justify-between text-xs text-gray-500 mb-4">
                                 <span>0% - Very Low Risk</span>
@@ -324,15 +350,33 @@ async def home():
 @app.post("/predict")
 async def predict_fraud(request: Request):
     """Predict fraud probability for a claim."""
-    if not model_loaded:
-        return JSONResponse({"error": "Models not loaded"}, status_code=503)
+    global predictor, model_loaded
+    
+    # Ensure predictor is available
+    if not model_loaded or predictor is None:
+        try:
+            logger.info("Initializing predictor in prediction endpoint...")
+            from data_loader import InsuranceDataLoader
+            from model import FraudPredictor
+            
+            loader = InsuranceDataLoader()
+            data = loader.load_data()
+            predictor = FraudPredictor()
+            predictor.train(data)
+            model_loaded = True
+            logger.info("Predictor initialized successfully")
+        except Exception as init_error:
+            logger.error(f"Failed to initialize predictor: {init_error}")
+            return JSONResponse({"error": "Model initialization failed"}, status_code=503)
     
     try:
         # Get request data
         data = await request.json()
+        logger.info(f"Received prediction request: {data}")
         
-        # Make prediction
+        # Make prediction (data type conversion handled in model)
         fraud_prob = predictor.predict_single(**data)
+        logger.info(f"Prediction result: {fraud_prob}")
         
         # Calculate processing time (mock for demo)
         import time
@@ -346,6 +390,8 @@ async def predict_fraud(request: Request):
         
     except Exception as e:
         logger.error(f"Prediction error: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/model-info")
