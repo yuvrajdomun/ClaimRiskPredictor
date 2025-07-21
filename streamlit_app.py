@@ -306,107 +306,464 @@ def show_prediction_page():
             st.error(f"Prediction failed: {e}")
 
 def show_whatif_page():
-    """What-if analysis page."""
+    """Enhanced What-if analysis page with comprehensive explanations."""
     
-    st.header("🧪 What-If Analysis")
-    st.write("Analyze how changing specific factors affects fraud probability")
+    st.header("🧪 What-If Analysis: Understanding Causal Impact")
     
-    # Base claim input (simplified)
-    st.subheader("📝 Base Claim")
+    # Introduction and explanation
+    with st.expander("📚 What is What-If Analysis?", expanded=True):
+        st.markdown("""
+        **What-If Analysis** helps you understand how changing specific factors would impact fraud risk. 
+        This is different from simple correlation - it estimates **causal effects**.
+        
+        ### 🎯 Key Questions We Can Answer:
+        - If this person had fewer driving violations, how would their risk change?
+        - What if they had a better credit score?
+        - How much does the claim amount really matter?
+        
+        ### 🔬 How It Works:
+        1. **Baseline**: We start with your original claim details
+        2. **Intervention**: We change one factor while keeping others constant
+        3. **Comparison**: We measure the difference in fraud probability
+        4. **Causal Inference**: We estimate the true causal effect, not just correlation
+        
+        ### 💡 Why This Matters:
+        - **Policy Decisions**: Understand which factors to focus on
+        - **Risk Management**: Identify the most impactful interventions
+        - **Fairness**: Ensure decisions are based on controllable factors
+        """)
+    
+    st.markdown("---")
+    
+    # Step 1: Base Claim Setup
+    st.subheader("📝 Step 1: Define Your Base Claim")
+    st.info("🔍 **What's happening:** We're creating a baseline claim to compare against. This represents the 'original' situation.")
     
     col1, col2 = st.columns(2)
     with col1:
-        base_age = st.number_input("Base Age", min_value=18, max_value=100, value=35, key="base_age")
-        base_violations = st.number_input("Base Violations", min_value=0, max_value=20, value=1, key="base_violations")
-        base_claims = st.number_input("Base Previous Claims", min_value=0, max_value=50, value=1, key="base_claims")
+        st.markdown("**👤 Personal Details**")
+        base_age = st.number_input("Age", min_value=18, max_value=100, value=35, key="base_age", help="Driver's age in years")
+        base_gender = st.selectbox("Gender", ["M", "F"], index=0, key="base_gender")
+        base_violations = st.number_input("Driving Violations", min_value=0, max_value=20, value=1, key="base_violations", help="Number of traffic violations")
+        base_claims = st.number_input("Previous Claims", min_value=0, max_value=50, value=1, key="base_claims", help="Historical insurance claims")
+        base_credit = st.number_input("Credit Score", min_value=300, max_value=850, value=650, key="base_credit", help="Credit score (300-850)")
     
     with col2:
-        base_amount = st.number_input("Base Claim Amount", min_value=100, max_value=1000000, value=25000, key="base_amount")
-        base_credit = st.number_input("Base Credit Score", min_value=300, max_value=850, value=650, key="base_credit")
-        base_mileage = st.number_input("Base Mileage (miles)", min_value=1000, max_value=100000, value=15000, key="base_mileage")
+        st.markdown("**🚗 Vehicle & Claim Details**")
+        base_vehicle_age = st.number_input("Vehicle Age", min_value=0, max_value=30, value=5, key="base_vehicle_age", help="Age of vehicle in years")
+        base_vehicle_type = st.selectbox("Vehicle Type", ["sedan", "suv", "truck", "sports", "luxury"], index=0, key="base_vehicle_type")
+        base_amount = st.number_input("Claim Amount (£)", min_value=100, max_value=1000000, value=25000, key="base_amount", help="Amount claimed in British pounds")
+        base_mileage = st.number_input("Annual Mileage", min_value=1000, max_value=100000, value=15000, key="base_mileage", help="Miles driven per year")
+        base_region = st.selectbox("Region", ["urban", "suburban", "rural"], index=1, key="base_region")
     
-    # Interventions
-    st.subheader("🔧 What-If Scenarios")
-    
-    scenarios = []
-    
-    with st.expander("Scenario 1: Increase Violations"):
-        new_violations = st.slider("New Violations", 0, 20, base_violations + 2)
-        if st.button("Add Scenario 1"):
-            scenarios.append(("violations", base_violations, new_violations))
-    
-    with st.expander("Scenario 2: Change Claim Amount"):
-        new_amount = st.slider("New Claim Amount", 1000, 200000, base_amount * 2)
-        if st.button("Add Scenario 2"):
-            scenarios.append(("amount", base_amount, new_amount))
-    
-    with st.expander("Scenario 3: Change Credit Score"):
-        new_credit = st.slider("New Credit Score", 300, 850, max(300, base_credit - 100))
-        if st.button("Add Scenario 3"):
-            scenarios.append(("credit", base_credit, new_credit))
-    
-    if scenarios:
-        st.subheader("📊 Scenario Results")
+    # Calculate base prediction
+    try:
+        predictor, data = load_model()
         
-        try:
-            predictor, data = load_model()
-            analyzer = CausalAnalyzer()
+        base_claim = {
+            'age': base_age,
+            'gender': base_gender,
+            'vehicle_age': base_vehicle_age,
+            'vehicle_type': base_vehicle_type,
+            'annual_mileage': base_mileage,
+            'driving_violations': base_violations,
+            'claim_amount': base_amount,
+            'previous_claims': base_claims,
+            'credit_score': base_credit,
+            'region': base_region
+        }
+        
+        base_prob = predictor.predict_single(**base_claim)
+        base_risk_level = "Low" if base_prob < 0.3 else "Medium" if base_prob < 0.7 else "High"
+        
+        # Display base prediction
+        st.markdown("### 🎯 Baseline Prediction")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Base Fraud Probability", f"{base_prob:.1%}")
+        with col2:
+            color = "🟢" if base_risk_level == "Low" else "🟡" if base_risk_level == "Medium" else "🔴"
+            st.metric("Risk Level", f"{color} {base_risk_level}")
+        with col3:
+            st.metric("Confidence", "High" if abs(base_prob - 0.5) > 0.2 else "Medium")
+        
+        st.markdown("---")
+        
+        # Step 2: Scenario Selection
+        st.subheader("🔧 Step 2: Choose What-If Scenarios")
+        st.info("🔍 **What's happening:** Select which factors you want to change and by how much. We'll then calculate how each change affects fraud risk.")
+        
+        # Initialize session state for scenarios
+        if 'active_scenarios' not in st.session_state:
+            st.session_state.active_scenarios = []
+        
+        # Scenario configuration
+        scenario_tabs = st.tabs(["🚨 Violations", "💰 Claim Amount", "💳 Credit Score", "📊 Mileage", "📅 Age", "🏠 Region"])
+        
+        # Violations scenario
+        with scenario_tabs[0]:
+            st.markdown("**Impact of Driving Violations**")
+            st.write("🎯 **Understanding:** More violations typically increase fraud risk as they indicate riskier behavior.")
             
-            base_claim = {
-                'age': base_age, 'gender': 'M', 'vehicle_age': 5, 'vehicle_type': 'sedan',
-                'annual_mileage': base_mileage, 'driving_violations': base_violations,
-                'claim_amount': base_amount, 'previous_claims': base_claims,
-                'credit_score': base_credit, 'region': 'suburban'
-            }
+            violation_options = st.columns(3)
+            with violation_options[0]:
+                if st.button("📈 Increase Violations (+2)", key="inc_viol"):
+                    scenario = create_scenario("violations", "Increase Violations", base_violations, min(20, base_violations + 2), 
+                                             "What if this person had 2 more violations?", "Higher violations → Higher risk")
+                    add_scenario_to_state(scenario)
             
-            # Base prediction
-            base_prob = predictor.predict_single(**base_claim)
+            with violation_options[1]:
+                if st.button("📉 Clean Record (0)", key="clean_record"):
+                    scenario = create_scenario("violations", "Clean Record", base_violations, 0,
+                                             "What if this person had a clean driving record?", "No violations → Lower risk")
+                    add_scenario_to_state(scenario)
             
+            with violation_options[2]:
+                custom_violations = st.number_input("Custom Violations", 0, 20, base_violations, key="custom_viol")
+                if st.button("🎯 Custom Violations", key="cust_viol"):
+                    scenario = create_scenario("violations", f"Custom Violations ({custom_violations})", base_violations, custom_violations,
+                                             f"What if this person had {custom_violations} violations?", f"Custom violation level analysis")
+                    add_scenario_to_state(scenario)
+        
+        # Claim Amount scenario
+        with scenario_tabs[1]:
+            st.markdown("**Impact of Claim Amount**")
+            st.write("🎯 **Understanding:** Higher claim amounts often correlate with fraud, but the relationship isn't always linear.")
+            
+            amount_options = st.columns(3)
+            with amount_options[0]:
+                if st.button("📈 Double Amount (×2)", key="double_amount"):
+                    new_amount = min(1000000, base_amount * 2)
+                    scenario = create_scenario("claim_amount", "Double Claim Amount", base_amount, new_amount,
+                                             "What if the claim amount was twice as much?", "Higher amounts → Potential higher risk")
+                    add_scenario_to_state(scenario)
+            
+            with amount_options[1]:
+                if st.button("📉 Small Claim (£5k)", key="small_claim"):
+                    scenario = create_scenario("claim_amount", "Small Claim", base_amount, 5000,
+                                             "What if this was a small £5,000 claim?", "Smaller claims → Typically lower risk")
+                    add_scenario_to_state(scenario)
+            
+            with amount_options[2]:
+                custom_amount = st.number_input("Custom Amount (£)", 100, 1000000, base_amount, step=1000, key="custom_amount")
+                if st.button("🎯 Custom Amount", key="cust_amount"):
+                    scenario = create_scenario("claim_amount", f"Custom Amount (£{custom_amount:,})", base_amount, custom_amount,
+                                             f"What if the claim was for £{custom_amount:,}?", "Custom claim amount analysis")
+                    add_scenario_to_state(scenario)
+        
+        # Credit Score scenario
+        with scenario_tabs[2]:
+            st.markdown("**Impact of Credit Score**")
+            st.write("🎯 **Understanding:** Higher credit scores typically indicate lower fraud risk due to better financial responsibility.")
+            
+            credit_options = st.columns(3)
+            with credit_options[0]:
+                if st.button("📈 Excellent Credit (800)", key="excellent_credit"):
+                    scenario = create_scenario("credit_score", "Excellent Credit", base_credit, 800,
+                                             "What if this person had excellent credit (800)?", "High credit → Lower risk")
+                    add_scenario_to_state(scenario)
+            
+            with credit_options[1]:
+                if st.button("📉 Poor Credit (500)", key="poor_credit"):
+                    scenario = create_scenario("credit_score", "Poor Credit", base_credit, 500,
+                                             "What if this person had poor credit (500)?", "Low credit → Higher risk")
+                    add_scenario_to_state(scenario)
+            
+            with credit_options[2]:
+                custom_credit = st.number_input("Custom Credit Score", 300, 850, base_credit, key="custom_credit")
+                if st.button("🎯 Custom Credit", key="cust_credit"):
+                    scenario = create_scenario("credit_score", f"Custom Credit ({custom_credit})", base_credit, custom_credit,
+                                             f"What if the credit score was {custom_credit}?", "Custom credit score analysis")
+                    add_scenario_to_state(scenario)
+        
+        # Mileage scenario
+        with scenario_tabs[3]:
+            st.markdown("**Impact of Annual Mileage**")
+            st.write("🎯 **Understanding:** Both very high and very low mileage can be suspicious indicators.")
+            
+            mileage_options = st.columns(3)
+            with mileage_options[0]:
+                if st.button("📈 High Mileage (30k)", key="high_mileage"):
+                    scenario = create_scenario("annual_mileage", "High Mileage", base_mileage, 30000,
+                                             "What if this person drove 30,000 miles/year?", "High mileage can increase risk")
+                    add_scenario_to_state(scenario)
+            
+            with mileage_options[1]:
+                if st.button("📉 Low Mileage (5k)", key="low_mileage"):
+                    scenario = create_scenario("annual_mileage", "Low Mileage", base_mileage, 5000,
+                                             "What if this person only drove 5,000 miles/year?", "Very low mileage can be suspicious")
+                    add_scenario_to_state(scenario)
+            
+            with mileage_options[2]:
+                custom_mileage = st.number_input("Custom Mileage", 1000, 100000, base_mileage, step=1000, key="custom_mileage")
+                if st.button("🎯 Custom Mileage", key="cust_mileage"):
+                    scenario = create_scenario("annual_mileage", f"Custom Mileage ({custom_mileage:,})", base_mileage, custom_mileage,
+                                             f"What if annual mileage was {custom_mileage:,} miles?", "Custom mileage analysis")
+                    add_scenario_to_state(scenario)
+        
+        # Age scenario
+        with scenario_tabs[4]:
+            st.markdown("**Impact of Age**")
+            st.write("🎯 **Understanding:** Age affects risk, with younger and older drivers showing different patterns.")
+            
+            age_options = st.columns(3)
+            with age_options[0]:
+                if st.button("👶 Young Driver (22)", key="young_driver"):
+                    scenario = create_scenario("age", "Young Driver", base_age, 22,
+                                             "What if this was a 22-year-old driver?", "Younger drivers often have higher risk")
+                    add_scenario_to_state(scenario)
+            
+            with age_options[1]:
+                if st.button("👴 Senior Driver (65)", key="senior_driver"):
+                    scenario = create_scenario("age", "Senior Driver", base_age, 65,
+                                             "What if this was a 65-year-old driver?", "Senior drivers typically lower risk")
+                    add_scenario_to_state(scenario)
+            
+            with age_options[2]:
+                custom_age = st.number_input("Custom Age", 18, 100, base_age, key="custom_age")
+                if st.button("🎯 Custom Age", key="cust_age"):
+                    scenario = create_scenario("age", f"Custom Age ({custom_age})", base_age, custom_age,
+                                             f"What if the driver was {custom_age} years old?", "Custom age analysis")
+                    add_scenario_to_state(scenario)
+        
+        # Region scenario
+        with scenario_tabs[5]:
+            st.markdown("**Impact of Region**")
+            st.write("🎯 **Understanding:** Different regions have varying fraud rates due to local factors.")
+            
+            region_options = st.columns(3)
+            regions_map = {"urban": "Urban Area", "suburban": "Suburban Area", "rural": "Rural Area"}
+            
+            for i, (region_key, region_name) in enumerate(regions_map.items()):
+                with region_options[i]:
+                    if st.button(f"📍 {region_name}", key=f"region_{region_key}") and region_key != base_region:
+                        scenario = create_scenario("region", f"Move to {region_name}", base_region, region_key,
+                                                 f"What if this claim was from a {region_name.lower()}?", f"Regional risk patterns vary")
+                        add_scenario_to_state(scenario)
+        
+        # Step 3: Active Scenarios and Results
+        if st.session_state.active_scenarios:
+            st.markdown("---")
+            st.subheader("📊 Step 3: Active Scenarios & Results")
+            st.info("🔍 **What's happening:** We're calculating how each change affects fraud probability and showing you the causal impact.")
+            
+            # Clear all scenarios button
+            if st.button("🗑️ Clear All Scenarios", type="secondary"):
+                st.session_state.active_scenarios = []
+                st.experimental_rerun()
+            
+            # Calculate results for all scenarios
             results_data = []
             
-            for scenario_name, old_val, new_val in scenarios:
+            for scenario in st.session_state.active_scenarios:
                 # Create modified claim
                 modified_claim = base_claim.copy()
+                modified_claim[scenario['factor']] = scenario['new_value']
                 
-                if scenario_name == "violations":
-                    modified_claim['driving_violations'] = new_val
-                elif scenario_name == "amount":
-                    modified_claim['claim_amount'] = new_val
-                elif scenario_name == "credit":
-                    modified_claim['credit_score'] = new_val
-                
-                # New prediction
+                # Get new prediction
                 new_prob = predictor.predict_single(**modified_claim)
                 change = new_prob - base_prob
+                impact_direction = "↗️ Increases Risk" if change > 0.01 else "↘️ Reduces Risk" if change < -0.01 else "➡️ No Significant Change"
                 
                 results_data.append({
-                    'Scenario': scenario_name.title(),
-                    'Original': old_val,
-                    'New': new_val,
-                    'Original Risk': f"{base_prob:.1%}",
-                    'New Risk': f"{new_prob:.1%}",
-                    'Change': f"{change:+.1%}"
+                    'scenario': scenario,
+                    'new_prob': new_prob,
+                    'change': change,
+                    'impact_direction': impact_direction
                 })
             
-            results_df = pd.DataFrame(results_data)
-            st.dataframe(results_df, use_container_width=True)
+            # Display results in cards
+            st.markdown("### 🎯 Scenario Comparison")
+            
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Base Risk", f"{base_prob:.1%}")
+            with col2:
+                avg_change = np.mean([r['change'] for r in results_data])
+                st.metric("Avg Impact", f"{avg_change:+.1%}", delta=f"{avg_change:+.1%}")
+            with col3:
+                max_risk = max([r['new_prob'] for r in results_data])
+                st.metric("Highest Risk", f"{max_risk:.1%}")
+            with col4:
+                min_risk = min([r['new_prob'] for r in results_data])
+                st.metric("Lowest Risk", f"{min_risk:.1%}")
+            
+            # Detailed results
+            st.markdown("### 📋 Detailed Scenario Results")
+            
+            for i, result in enumerate(results_data):
+                scenario = result['scenario']
+                
+                with st.container():
+                    st.markdown(f"""
+                    <div style="
+                        border-left: 4px solid {'#ff4b4b' if result['change'] > 0 else '#00cc44' if result['change'] < 0 else '#ffa500'};
+                        padding: 15px;
+                        margin: 10px 0;
+                        background-color: {'#ffe6e6' if result['change'] > 0 else '#e6ffe6' if result['change'] < 0 else '#fff3e6'};
+                        border-radius: 5px;
+                    ">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">🎯 {scenario['name']}</h4>
+                        <p style="margin: 5px 0; color: #666;"><strong>Question:</strong> {scenario['question']}</p>
+                        <p style="margin: 5px 0; color: #666;"><strong>Theory:</strong> {scenario['explanation']}</p>
+                        
+                        <div style="display: flex; justify-content: space-between; margin: 10px 0;">
+                            <span><strong>Original Value:</strong> {scenario['original_value']}</span>
+                            <span><strong>New Value:</strong> {scenario['new_value']}</span>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; margin: 10px 0;">
+                            <span><strong>Base Risk:</strong> {base_prob:.1%}</span>
+                            <span><strong>New Risk:</strong> {result['new_prob']:.1%}</span>
+                            <span><strong>Change:</strong> <span style="color: {'red' if result['change'] > 0 else 'green' if result['change'] < 0 else 'orange'}; font-weight: bold;">{result['change']:+.1%}</span></span>
+                        </div>
+                        
+                        <p style="margin: 5px 0; font-weight: bold; color: {'#d63031' if result['change'] > 0 else '#00b894' if result['change'] < 0 else '#e67e22'};">
+                            <strong>Impact:</strong> {result['impact_direction']}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
             
             # Visualization
-            scenarios_names = [item['Scenario'] for item in results_data]
-            changes = [float(item['Change'].replace('%', '').replace('+', '')) / 100 for item in results_data]
+            st.markdown("### 📈 Visual Comparison")
             
-            fig_change = px.bar(
-                x=scenarios_names,
-                y=changes,
-                title="Risk Change by Scenario",
-                color=changes,
-                color_continuous_scale=['green', 'yellow', 'red']
+            # Create comparison chart
+            scenario_names = [r['scenario']['name'] for r in results_data]
+            base_risks = [base_prob] * len(results_data)
+            new_risks = [r['new_prob'] for r in results_data]
+            changes = [r['change'] for r in results_data]
+            
+            fig = go.Figure()
+            
+            # Base risk line
+            fig.add_trace(go.Scatter(
+                x=scenario_names,
+                y=base_risks,
+                mode='lines+markers',
+                name='Base Risk',
+                line=dict(color='blue', dash='dash'),
+                marker=dict(size=8)
+            ))
+            
+            # New risks
+            fig.add_trace(go.Scatter(
+                x=scenario_names,
+                y=new_risks,
+                mode='lines+markers',
+                name='Scenario Risk',
+                line=dict(color='red'),
+                marker=dict(size=10)
+            ))
+            
+            fig.update_layout(
+                title="Risk Probability: Base vs Scenarios",
+                xaxis_title="Scenarios",
+                yaxis_title="Fraud Probability",
+                yaxis=dict(tickformat='.1%'),
+                height=400,
+                hovermode='x unified'
             )
-            fig_change.update_layout(yaxis_title="Risk Change", height=400)
-            st.plotly_chart(fig_change, use_container_width=True)
             
-        except Exception as e:
-            st.error(f"What-if analysis failed: {e}")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Change magnitude chart
+            fig_changes = px.bar(
+                x=scenario_names,
+                y=[abs(c) for c in changes],
+                color=changes,
+                color_continuous_scale=['green', 'yellow', 'red'],
+                title="Magnitude of Risk Change by Scenario",
+                labels={'y': 'Absolute Change in Risk', 'x': 'Scenarios'}
+            )
+            fig_changes.update_layout(height=400)
+            st.plotly_chart(fig_changes, use_container_width=True)
+            
+            # Insights and recommendations
+            st.markdown("### 💡 Key Insights")
+            
+            # Generate insights
+            insights = generate_whatif_insights(results_data, base_prob)
+            for insight in insights:
+                st.info(f"🔍 **{insight['title']}**: {insight['description']}")
+            
+        else:
+            st.info("👆 **Next Step:** Choose one or more scenarios above to see how changes would affect fraud risk!")
+        
+    except Exception as e:
+        st.error(f"What-if analysis failed: {e}")
+        st.write("Please ensure the model is properly loaded and try again.")
+
+
+def create_scenario(factor, name, original_value, new_value, question, explanation):
+    """Create a scenario dictionary."""
+    return {
+        'factor': factor,
+        'name': name,
+        'original_value': original_value,
+        'new_value': new_value,
+        'question': question,
+        'explanation': explanation
+    }
+
+
+def add_scenario_to_state(scenario):
+    """Add scenario to session state if not already present."""
+    # Check if scenario already exists
+    for existing in st.session_state.active_scenarios:
+        if existing['factor'] == scenario['factor'] and existing['name'] == scenario['name']:
+            return  # Don't add duplicates
+    
+    st.session_state.active_scenarios.append(scenario)
+
+
+def generate_whatif_insights(results_data, base_prob):
+    """Generate insights from what-if analysis results."""
+    insights = []
+    
+    if not results_data:
+        return insights
+    
+    changes = [r['change'] for r in results_data]
+    max_change = max(changes, key=abs)
+    max_result = next(r for r in results_data if r['change'] == max_change)
+    
+    # Biggest impact
+    if abs(max_change) > 0.05:  # 5% change
+        direction = "increases" if max_change > 0 else "decreases"
+        insights.append({
+            'title': 'Biggest Impact Factor',
+            'description': f"'{max_result['scenario']['name']}' has the largest effect, {direction} risk by {abs(max_change):.1%}. This suggests {max_result['scenario']['factor']} is a key driver of fraud risk."
+        })
+    
+    # Risk direction patterns
+    increases = [r for r in results_data if r['change'] > 0.01]
+    decreases = [r for r in results_data if r['change'] < -0.01]
+    
+    if len(increases) > len(decreases):
+        insights.append({
+            'title': 'Risk Pattern',
+            'description': f"Most scenarios ({len(increases)}/{len(results_data)}) increase fraud risk, suggesting this claim profile is sensitive to negative changes."
+        })
+    elif len(decreases) > len(increases):
+        insights.append({
+            'title': 'Risk Pattern',
+            'description': f"Most scenarios ({len(decreases)}/{len(results_data)}) decrease fraud risk, suggesting potential for risk reduction through targeted interventions."
+        })
+    
+    # Base risk context
+    if base_prob > 0.7:
+        insights.append({
+            'title': 'High Base Risk',
+            'description': f"With base risk at {base_prob:.1%}, this claim is already high-risk. Focus on scenarios that reduce risk most effectively."
+        })
+    elif base_prob < 0.3:
+        insights.append({
+            'title': 'Low Base Risk',
+            'description': f"With base risk at {base_prob:.1%}, this claim is low-risk. Monitor for factors that could significantly increase risk."
+        })
+    
+    return insights
 
 def show_analytics_page():
     """Model analytics and performance page."""
