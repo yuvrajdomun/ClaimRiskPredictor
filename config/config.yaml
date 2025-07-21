@@ -1,0 +1,226 @@
+# Insurance Fraud Detector Configuration
+# This file contains all configurable parameters for the system
+
+# Model Configuration
+models:
+  ensemble:
+    # Available models: random_forest, xgboost, lightgbm, logistic_regression, 
+    # neural_network, svm, gradient_boosting
+    enabled_models:
+      - random_forest
+      - xgboost
+      - logistic_regression
+    
+    # Model weights for ensemble (must sum to 1.0)
+    weights:
+      random_forest: 0.4
+      xgboost: 0.4
+      logistic_regression: 0.2
+  
+  # Individual model hyperparameters
+  random_forest:
+    n_estimators: 100
+    max_depth: 10
+    min_samples_split: 5
+    min_samples_leaf: 2
+    max_features: "sqrt"
+    random_state: 42
+  
+  xgboost:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+  
+  lightgbm:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    num_leaves: 31
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+  
+  logistic_regression:
+    C: 1.0
+    penalty: "l2"
+    max_iter: 1000
+    random_state: 42
+  
+  neural_network:
+    hidden_layer_sizes: [100, 50]
+    activation: "relu"
+    solver: "adam"
+    alpha: 0.001
+    max_iter: 1000
+    random_state: 42
+  
+  svm:
+    C: 1.0
+    kernel: "rbf"
+    gamma: "scale"
+    probability: true
+    random_state: 42
+  
+  gradient_boosting:
+    n_estimators: 100
+    learning_rate: 0.1
+    max_depth: 3
+    min_samples_split: 5
+    min_samples_leaf: 2
+    random_state: 42
+
+# Data Configuration
+data:
+  # Feature engineering settings
+  features:
+    numerical:
+      - age
+      - vehicle_age
+      - annual_mileage
+      - driving_violations
+      - claim_amount
+      - previous_claims
+      - credit_score
+    
+    categorical:
+      - gender
+      - vehicle_type
+      - region
+    
+    # Feature engineering options
+    create_interactions: true
+    create_polynomial: false
+    polynomial_degree: 2
+    
+    # Feature scaling method: standard, minmax, robust, none
+    scaling_method: "standard"
+  
+  # Data validation rules
+  validation:
+    age_range: [18, 100]
+    vehicle_age_range: [0, 30]
+    annual_mileage_range: [1000, 100000]
+    driving_violations_range: [0, 20]
+    claim_amount_range: [100, 1000000]
+    previous_claims_range: [0, 50]
+    credit_score_range: [300, 850]
+  
+  # Data splitting
+  train_test_split:
+    test_size: 0.2
+    validation_size: 0.15
+    random_state: 42
+    stratify: true
+
+# Training Configuration
+training:
+  # Cross-validation settings
+  cross_validation:
+    cv_folds: 5
+    scoring: "roc_auc"
+    shuffle: true
+    random_state: 42
+  
+  # Hyperparameter optimization
+  hyperopt:
+    enabled: false
+    n_trials: 100
+    timeout: 3600  # seconds
+    search_space:
+      random_forest:
+        n_estimators: [50, 100, 200]
+        max_depth: [5, 10, 15, 20]
+        min_samples_split: [2, 5, 10]
+      xgboost:
+        n_estimators: [50, 100, 200]
+        max_depth: [3, 6, 9]
+        learning_rate: [0.01, 0.1, 0.2]
+  
+  # Class imbalance handling
+  class_balance:
+    method: "smote"  # Options: smote, adasyn, random_oversample, none
+    sampling_strategy: "auto"
+    random_state: 42
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 10
+    min_delta: 0.001
+
+# Evaluation Configuration
+evaluation:
+  # Primary metrics for model selection
+  primary_metric: "roc_auc"
+  
+  # All metrics to calculate
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+    - precision_recall_auc
+    - log_loss
+  
+  # Thresholds for different risk levels
+  risk_thresholds:
+    low_risk: 0.3
+    high_risk: 0.7
+  
+  # Business metrics
+  business_metrics:
+    false_positive_cost: 1000  # Cost of investigating legitimate claim
+    false_negative_cost: 10000  # Cost of missing fraudulent claim
+    investigation_capacity: 0.1  # % of claims that can be investigated
+
+# Bias Detection Configuration
+bias_detection:
+  enabled: true
+  
+  # Protected attributes to monitor
+  protected_attributes:
+    - gender
+    - age_group
+    - region
+  
+  # Fairness metrics to calculate
+  fairness_metrics:
+    - disparate_impact
+    - equalized_odds
+    - calibration
+  
+  # Fairness thresholds
+  thresholds:
+    disparate_impact_ratio: 0.8
+    equalized_odds_diff: 0.1
+    calibration_diff: 0.05
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  cors_enabled: true
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_path: "logs/insurance_fraud_detector.log"
+  max_file_size: 10485760  # 10 MB
+  backup_count: 5
+
+# Paths Configuration
+paths:
+  data_dir: "data"
+  model_dir: "models"
+  logs_dir: "logs"
+  output_dir: "output"
+  temp_dir: "temp"

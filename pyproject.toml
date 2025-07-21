@@ -1,0 +1,230 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "insurance-fraud-detector"
+version = "1.0.0"
+description = "AI-powered insurance fraud detection system with ML, causal analysis, and bias detection"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Insurance Analytics Team", email = "contact@insurancefraud.ai"},
+]
+maintainers = [
+    {name = "Insurance Analytics Team", email = "contact@insurancefraud.ai"},
+]
+keywords = [
+    "insurance",
+    "fraud-detection", 
+    "machine-learning",
+    "artificial-intelligence",
+    "causal-inference",
+    "bias-detection",
+    "fairness",
+    "ensemble-learning",
+    "explainable-ai",
+    "fintech"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.21.0",
+    "pandas>=1.5.0",
+    "scikit-learn>=1.2.0",
+    "xgboost>=1.7.0",
+    "lightgbm>=3.3.0",
+    "joblib>=1.2.0",
+    "pyyaml>=6.0",
+    "pydantic>=1.10.0",
+    "fastapi>=0.95.0",
+    "uvicorn>=0.21.0",
+    "streamlit>=1.22.0",
+    "plotly>=5.14.0",
+    "imbalanced-learn>=0.10.0",
+    "dowhy>=0.8.0",
+    "shap>=0.41.0",
+]
+dynamic = []
+
+[project.urls]
+Homepage = "https://github.com/yuvrajdomun/ClaimRiskPredictor"
+Documentation = "https://github.com/yuvrajdomun/ClaimRiskPredictor#readme"
+Repository = "https://github.com/yuvrajdomun/ClaimRiskPredictor.git"
+"Bug Reports" = "https://github.com/yuvrajdomun/ClaimRiskPredictor/issues"
+Changelog = "https://github.com/yuvrajdomun/ClaimRiskPredictor/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+    "jupyter>=1.0.0",
+    "notebook>=6.5.0",
+    "jupyterlab>=3.6.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "myst-parser>=1.0.0",
+]
+jupyter = [
+    "jupyter>=1.0.0",
+    "notebook>=6.5.0",
+    "jupyterlab>=3.6.0",
+    "ipywidgets>=8.0.0",
+]
+viz = [
+    "seaborn>=0.12.0",
+    "matplotlib>=3.6.0",
+]
+
+[project.scripts]
+fraud-detector = "insurance_fraud_detector.cli:main"
+fraud-train = "insurance_fraud_detector.scripts.train:main"
+fraud-predict = "insurance_fraud_detector.scripts.predict:main"
+fraud-evaluate = "insurance_fraud_detector.scripts.evaluate:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+insurance_fraud_detector = ["config/*.yaml", "config/*.yml", "data/*.csv", "models/*.pkl", "models/*.joblib"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | venv
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
+skip_gitignore = true
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "E266", "E501", "W503", "F403", "F401"]
+max-complexity = 15
+select = ["B", "C", "E", "F", "W", "T4", "B9"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".pytest_cache",
+    ".mypy_cache"
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+exclude = [
+    "venv/",
+    ".venv/",
+    "build/",
+    "dist/",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "setup.py",
+    "venv/*",
+    ".venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\bProtocol\):",
+    "@(abc\.)?abstractmethod",
+]
+show_missing = true
+skip_covered = false
